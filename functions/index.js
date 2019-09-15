@@ -35,34 +35,39 @@ function makeRequest(url) {
 
 async function getCompetitorInfo(postal_code, category){
   let data = await get_data(postal_code)
-  let params = {
-    center: `${data['lat']},${data['lng']}`,
-    distance: data['radius'],
-    categories : [category],
-    fields:'location,about,name',
-    type:'place',
-    access_token:'701461230329751|6f459631352c8c79a445adf906750d94'
-  }
-  let url = appendQuery('https://graph.facebook.com/search?', params)
-  let body = await makeRequest(url)
-  body = JSON.parse(body)
-  let graph_data = body['data']
-  if (!graph_data){
-    graph_data = []
-  }
-  let competitor_info = []
-  for(loc of graph_data){
-    let tmp_obj = {}
-    location_info = loc['location']
-    if(!location_info){
-      location_info = {}
+    let params = {
+      center: `${data['lat']},${data['lng']}`,
+      distance: data['radius'],
+      categories : [category],
+      fields:'location,about,name,checkins',
+      type:'place',
+      access_token:'701461230329751|6f459631352c8c79a445adf906750d94'
     }
-    tmp_obj['lat'] = location_info['latitude']
-    tmp_obj['lng'] = location_info['longitude']
-    tmp_obj['name'] = loc['name']
-    competitor_info.push(tmp_obj)
-  }
-  return competitor_info
+    let url = appendQuery('https://graph.facebook.com/search?', params)
+    console.log(url)
+    let body = await makeRequest(url)
+    body = JSON.parse(body)
+    let graph_data = body['data']
+    if (!graph_data){
+      graph_data = []
+    }
+    let competitor_info = []
+    for(loc of graph_data){
+      let tmp_obj = {}
+      location_info = loc['location']
+      if(!location_info){
+        location_info = {}
+      }
+      tmp_obj['lat'] = location_info['latitude']
+      tmp_obj['lng'] = location_info['longitude']
+      tmp_obj['name'] = loc['name']
+      tmp_obj['checkins'] = loc['checkins']
+      competitor_info.push(tmp_obj)
+    }
+    console.log(competitor_info)
+    competitor_info['postal_code'] = postal_code
+    await db.collection('CompetitorData').doc(postal_code).collection(category).add({'competitor_data':competitor_info});
+    return competitor_info
 }
 
 // http://us-central1-hackthenorth.cloudfunctions.net/getOptimalPostalCodes?ageRangeLow=${data.ageRange[0]}&ageRangeHigh=${data.ageRange[1]}&incomeRangeLow=${data.incomeRange[0]}&incomeRangeHigh=${data.incomeRange[1]}&familySize=${data.familySize}

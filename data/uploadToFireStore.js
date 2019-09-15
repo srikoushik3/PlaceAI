@@ -14,6 +14,7 @@ admin.initializeApp({
 let db = admin.firestore();
 
 let docRef = db.collection('PostalCodes');
+let compData = db.collection('PostalCodes');
 data = []
 
 // fs.createReadStream('./geometry_information.csv')
@@ -87,10 +88,16 @@ data = []
       tmp_obj['lat'] = location_info['latitude']
       tmp_obj['lng'] = location_info['longitude']
       tmp_obj['name'] = loc['name']
+      tmp_obj['checkins'] = loc['checkins']
       competitor_info.push(tmp_obj)
     }
     console.log(competitor_info)
+    competitor_info['postal_code'] = postal_code
+    let dataRef = await compData.doc(postal_code).doc(category).set({'competitor_data': competitor_info});
     return competitor_info
   }
 
-  getCompetitorInfo('P3E', 'SHOPPING_RETAIL')
+  
+
+
+  let comp_info = getCompetitorInfo('P3E', 'SHOPPING_RETAIL')
