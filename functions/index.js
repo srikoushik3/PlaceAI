@@ -126,3 +126,17 @@ exports.getCompetitorData = functions.https.onRequest(async (req, res) => {
   res.set('Access-Control-Allow-Origin', '*')
   res.send(JSON.stringify(return_data))
 });
+
+exports.getTDdata = functions.https.onRequest(async (req, finalRes) => {
+  const accId = "544853ae-f9f3-4145-b11d-00347b932808"
+  axios.get(`https://api.td-davinci.com/api/accounts/${accId}`, 
+  {
+    headers: {
+      "AuthorizationKey": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJDQlAiLCJ0ZWFtX2lkIjoiMjg1MGE2NTYtODc3MC0zY2IxLWFhODAtYTJiOTIyOWMwYjZjIiwiZXhwIjo5MjIzMzcyMDM2ODU0Nzc1LCJhcHBfaWQiOiI4YzJiMzRjNi1kYjJjLTRiOTctYTE1Mi1hMjBkZjI4N2U5NmIifQ.6zCMQ0r5a-Wv4vS0tlZi6WOAkeKwKrXnA-T62yzP7eI"
+    }
+  }).then(res => {
+       finalRes.send(res)
+     
+  });
+});
+
