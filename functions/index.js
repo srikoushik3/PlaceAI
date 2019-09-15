@@ -3,6 +3,8 @@ const functions = require('firebase-functions');
 const cors = require('cors')({origin: true});  
 var request = require('request');
 var appendQuery = require('append-query');
+const axios = require('axios');
+const sr = require('seedrandom')
 
 // The Firebase Admin SDK to access the Firebase Realtime Database.
 const admin = require('firebase-admin');
@@ -35,16 +37,16 @@ function makeRequest(url) {
 
 async function getCompetitorInfo(postal_code, category){
   let data = await get_data(postal_code)
+    if(!data){return []}
     let params = {
       center: `${data['lat']},${data['lng']}`,
       distance: data['radius'],
       categories : [category],
       fields:'location,about,name,checkins',
       type:'place',
-      access_token:'701461230329751|6f459631352c8c79a445adf906750d94'
+      access_token:'2385770804804150|18b12dafa1d20df22c4a8a332a6d9d7d'
     }
     let url = appendQuery('https://graph.facebook.com/search?', params)
-    console.log(url)
     let body = await makeRequest(url)
     body = JSON.parse(body)
     let graph_data = body['data']
@@ -64,22 +66,21 @@ async function getCompetitorInfo(postal_code, category){
       tmp_obj['checkins'] = loc['checkins']
       competitor_info.push(tmp_obj)
     }
-    console.log(competitor_info)
-    competitor_info['postal_code'] = postal_code
     await db.collection('CompetitorData').doc(postal_code).collection(category).add({'competitor_data':competitor_info});
+    console.log(competitor_info)
     return competitor_info
 }
 
 // http://us-central1-hackthenorth.cloudfunctions.net/getOptimalPostalCodes?ageRangeLow=${data.ageRange[0]}&ageRangeHigh=${data.ageRange[1]}&incomeRangeLow=${data.incomeRange[0]}&incomeRangeHigh=${data.incomeRange[1]}&familySize=${data.familySize}
 exports.getOptimalPostalCodes = functions.https.onRequest(async (req, res) => {
-  postal_code_data = []
-  let count = 1
+  let postal_code_data = []
   let ageRangeHigh = parseInt(req.query.ageRangeHigh)
   let ageRangeLow = parseInt(req.query.ageRangeLow)
   let incomeRangeLow = parseInt(req.query.incomeRangeLow)
   let incomeRangeHigh = parseInt(req.query.incomeRangeHigh)
   let avgAge = parseInt(ageRangeHigh + ageRangeLow)/2.0
   let avgIncome = parseInt(incomeRangeLow + incomeRangeHigh)/2.0
+  let bizType = req.query.businessType
   let url = `http://evening-journey-71031.herokuapp.com/getPredictions?age=${avgAge}&income=${avgIncome}`
   console.log(url)
   let postal_codes = await makeRequest(url)
@@ -91,9 +92,9 @@ exports.getOptimalPostalCodes = functions.https.onRequest(async (req, res) => {
     if(!d){
       continue;
     }
-    d['strength'] = count
+    let seed = sr(code + bizType)
+    d['score'] = seed()
     postal_code_data.push(d)
-    count++
   }
   res.set('Access-Control-Allow-Origin', '*')
   res.send(JSON.stringify({'postal_code_data': postal_code_data}))
@@ -104,44 +105,20 @@ exports.getCompetitorData = functions.https.onRequest(async (req, res) => {
   let postal_code = req.query.postal_code
   compData = await getCompetitorInfo(postal_code, bt)
   return_data = {
-    heatMapData: [
-      {
-        "lat": 43.889,
-        "lng": -79.6441,
-        "weight": 1
-      },
-      {
-          "lat": 43.899,
-          "lng": -79.6241,
-          "weight": 0.3
-      },
-      {
-          "lat": 43.919,
-          "lng": -79.6341,
-          "weight": 1
-      },
-      {
-          "lat": 43.929,
-          "lng": -79.6541,
-          "weight": 0.4
-      }
-    ],
     competitorData: compData
   }
   res.set('Access-Control-Allow-Origin', '*')
+  console.log(return_data)
   res.send(JSON.stringify(return_data))
 });
 
 exports.getTDdata = functions.https.onRequest(async (req, finalRes) => {
   const accId = "544853ae-f9f3-4145-b11d-00347b932808"
-  axios.get(`https://api.td-davinci.com/api/accounts/${accId}`, 
-  {
-    headers: {
-      "AuthorizationKey": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJDQlAiLCJ0ZWFtX2lkIjoiMjg1MGE2NTYtODc3MC0zY2IxLWFhODAtYTJiOTIyOWMwYjZjIiwiZXhwIjo5MjIzMzcyMDM2ODU0Nzc1LCJhcHBfaWQiOiI4YzJiMzRjNi1kYjJjLTRiOTctYTE1Mi1hMjBkZjI4N2U5NmIifQ.6zCMQ0r5a-Wv4vS0tlZi6WOAkeKwKrXnA-T62yzP7eI"
-    }
-  }).then(res => {
-       finalRes.send(res)
-     
-  });
+    let res = await axios.get(`https://api.td-davinci.com/api/accounts/${accId}`, {
+      headers: {
+        "Authorization": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJDQlAiLCJ0ZWFtX2lkIjoiYmNlZWRjNGYtOThiOC0zNDM0LWJhZTAtNzkyOWQyZTFkMGE3IiwiZXhwIjo5MjIzMzcyMDM2ODU0Nzc1LCJhcHBfaWQiOiJhNTUwZTQxYS0xYTMwLTRlNGItOTVlMy1kMjIwNWE1OWY2OTYifQ.Nte0xfsU56PSgUe7o-TQDuuqwHo_WNE_Yl6p2KEPVgw"
+      }
+    })
+    console.log(res.data.result)
 });
 
