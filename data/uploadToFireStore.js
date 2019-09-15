@@ -10,25 +10,25 @@ admin.initializeApp({
 
 let db = admin.firestore();
 
-async function get_data(postal_code){
-    let postalCodesRef = db.collection('PostalCodes');
-    let query = await postalCodesRef.where('postal_code', '==', postal_code).get(); 
-    docs = []
-    for (doc of query.docs) {
-      return new Promise(async (resolve, reject) => {
-        resolve(doc.data())
-      })
-    }
-}
+let docRef = db.collection('PostalCodes');
+data = []
 
-
-async function test(){
-  postal_codes = ['KOA', 'K0B', 'L5M', 'L8L', 'L8M', 'L9T', 'L9V', 'M4B', 'M4C', 'M4G']
-  postal_code_data = []
-  for(code of postal_codes){
-    d = await get_data(code)
-    postal_code_data.push(d)
-  }
-  console.log(postal_code_data)
-}
-test()
+fs.createReadStream('./geometry_information.csv')
+  .pipe(csv())
+  .on('data', async function(row) {
+    data.push(row)
+  })
+  .on('end', () => {
+    console.log(data);
+    data.forEach(e => {
+      data = {
+        place: row['place'],
+        lat: row['lat'],
+        lng: row['lng'],
+        radius: row['radius'],
+        width: row['width'],
+        height: row['height']
+      }
+      let setDoc = await db.collection('PostalCodes').doc(row['postal_code']).set(data);
+    });
+  });
