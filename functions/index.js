@@ -2,6 +2,7 @@
 const functions = require('firebase-functions');
 const cors = require('cors')({origin: true});  
 var request = require('request');
+var appendQuery = require('append-query');
 
 // The Firebase Admin SDK to access the Firebase Realtime Database.
 const admin = require('firebase-admin');
@@ -30,6 +31,38 @@ function makeRequest(url) {
       }
     });
   });
+}
+
+async function getCompetitorInfo(postal_code, category){
+  let data = await get_data(postal_code)
+  let params = {
+    center: `${data['lat']},${data['lng']}`,
+    distance: data['radius'],
+    categories : [category],
+    fields:'location,about,name',
+    type:'place',
+    access_token:'701461230329751|6f459631352c8c79a445adf906750d94'
+  }
+  let url = appendQuery('https://graph.facebook.com/search?', params)
+  let body = await makeRequest(url)
+  body = JSON.parse(body)
+  let graph_data = body['data']
+  if (!graph_data){
+    graph_data = []
+  }
+  let competitor_info = []
+  for(loc of graph_data){
+    let tmp_obj = {}
+    location_info = loc['location']
+    if(!location_info){
+      location_info = {}
+    }
+    tmp_obj['lat'] = location_info['latitude']
+    tmp_obj['lng'] = location_info['longitude']
+    tmp_obj['name'] = loc['name']
+    competitor_info.push(tmp_obj)
+  }
+  return competitor_info
 }
 
 // http://us-central1-hackthenorth.cloudfunctions.net/getOptimalPostalCodes?ageRangeLow=${data.ageRange[0]}&ageRangeHigh=${data.ageRange[1]}&incomeRangeLow=${data.incomeRange[0]}&incomeRangeHigh=${data.incomeRange[1]}&familySize=${data.familySize}
@@ -62,51 +95,34 @@ exports.getOptimalPostalCodes = functions.https.onRequest(async (req, res) => {
 });
 
 exports.getCompetitorData = functions.https.onRequest(async (req, res) => {
-  fake_data = {heatMapData: {
-    positions: [{
-      lat: 43.8890,
-      lng: -79.6441,
-      weight: 1
-    }, {
-      lat: 43.8990,
-      lng: -79.6241,
-      weight: 0.3
-    }, {
-      lat: 43.9190,
-      lng: -79.6341,
-      weight: 1
-    }, {
-      lat: 43.9290,
-      lng: -79.6541,
-      weight: 0.4
-    }, {
-      lat: 43.8790,
-      lng: -79.6441,
-      weight: 0.2
-    }, {
-      lat: 43.8190,
-      lng: -79.6341,
-      weight: 0.4
-    }, {
-      lat: 43.9090,
-      lng: -79.6241,
-      weight: 0.9
-    }]
-  },competitorData: {
-    positions: [{
-      lat: 43.8890,
-      lng: -79.6441,
-      name: "C"
-    }, {
-      lat: 43.8990,
-      lng: -79.6241,
-      name: "B"
-    }, {
-      lat: 43.9190,
-      lng: -79.6341,
-      name: "A" }
-    ]
+  let bt = req.query.businessType
+  let postal_code = req.query.postal_code
+  compData = await getCompetitorInfo(postal_code, bt)
+  return_data = {
+    heatMapData: [
+      {
+        "lat": 43.889,
+        "lng": -79.6441,
+        "weight": 1
+      },
+      {
+          "lat": 43.899,
+          "lng": -79.6241,
+          "weight": 0.3
+      },
+      {
+          "lat": 43.919,
+          "lng": -79.6341,
+          "weight": 1
+      },
+      {
+          "lat": 43.929,
+          "lng": -79.6541,
+          "weight": 0.4
+      }
+    ],
+    competitorData: compData
   }
-}
-    res.send(JSON.stringify(fake_data))
+  res.set('Access-Control-Allow-Origin', '*')
+  res.send(JSON.stringify(return_data))
 });
